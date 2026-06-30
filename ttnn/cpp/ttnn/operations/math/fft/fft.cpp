@@ -26,9 +26,10 @@ Tensor create_dft_matrix(
     uint32_t size = N * N;
     TensorSpec spec(
         ttnn::Shape(std::vector<uint32_t>{N, N}),
-        TensorLayout(dtype, PageConfig(layout), mem_config)
+        TensorLayout(dtype, PageConfig(Layout::ROW_MAJOR), std::nullopt)
     );
     constexpr double PI = 3.14159265358979323846;
+    Tensor host_tensor;
     if (dtype == DataType::FLOAT32) {
         std::vector<float> owned_buffer(size);
         for (uint32_t k = 0; k < N; ++k) {
@@ -49,7 +50,7 @@ Tensor create_dft_matrix(
                 }
             }
         }
-        return Tensor::from_vector(std::move(owned_buffer), spec, device);
+        host_tensor = Tensor::from_vector(std::move(owned_buffer), spec, nullptr);
     } else {
         std::vector<bfloat16> owned_buffer(size);
         for (uint32_t k = 0; k < N; ++k) {
@@ -70,8 +71,9 @@ Tensor create_dft_matrix(
                 }
             }
         }
-        return Tensor::from_vector(std::move(owned_buffer), spec, device);
+        host_tensor = Tensor::from_vector(std::move(owned_buffer), spec, nullptr);
     }
+    return ttnn::to_layout(host_tensor, layout, std::nullopt, mem_config, device);
 }
 
 ComplexTensor fft_impl(
