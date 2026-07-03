@@ -350,8 +350,8 @@ sfpi_inline sfpi::vFloat _sfpu_exp_fp32_accurate_(sfpi::vFloat a) {
     // interleaved with first coefficient of polynomial
     j = 1.442695f * a;
     r = 1.37805939e-3f;
-    sfpi::vSMag i_smag = sfpi::convert<sfpi::vSMag16>(j, sfpi::RoundMode::Nearest);
-    j = sfpi::convert<sfpi::vFloat>(i_smag, sfpi::RoundMode::Nearest);
+    sfpi::vInt i_2c;
+    j = _sfpu_round_to_nearest_int32_(j, i_2c);
 
     // f = a - i*j (two-part cody-waite)
     f = j * -6.93145752e-1f + a;
@@ -364,7 +364,6 @@ sfpi_inline sfpi::vFloat _sfpu_exp_fp32_accurate_(sfpi::vFloat a) {
     r = r * f + 1.66664720e-1f;  // 0x1.555450p-3
     r = r * f + 4.99999851e-1f;  // 0x1.fffff6p-2
     y = r * f + 1.0f;
-    sfpi::vInt i_2c = sfpi::convert<sfpi::vInt>(i_smag);
     r = y * f + 1.0f;
 
     sfpi::vInt e = sfpi::exexp(r, sfpi::ExponentMode::NoDebias) + i_2c;
@@ -385,7 +384,13 @@ sfpi_inline sfpi::vFloat _sfpu_exp_fp32_accurate_(sfpi::vFloat a) {
             // if e < 1
             v_if(e_lt_255 < -254) {
                 // underflow, including subnormals
-                y = 0.0f;
+                sfpi::vFloat y_zero = 0.0f;
+                sfpi::vInt abs_a = sfpi::as<sfpi::vInt>(a) & 0x7FFFFFFF;
+                v_if(abs_a > 0x7F800000) {
+                    y_zero = y; // preserve NaN
+                }
+                v_endif;
+                y = y_zero;
             }
             v_endif;
         }
